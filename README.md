@@ -10,5 +10,6 @@ The repository contains the R code used to do all data preprocessing and statist
 
 ### Repository navigation 
 
+- [/doc/doc_data_preprocessing_pipeline.txt](https://github.com/onnela-lab/als-wearables/blob/main/doc/doc_data_preprocessing_pipeline.txt) contains a detailed list of steps done for data preprocessing. At each step, it includes references to specific R scrips from `/R/data_preprocessing` directory. 
 
-
+- [/doc/doc_data_analysis_pipeline.txt](https://github.com/onnela-lab/als-wearables/blob/main/doc/doc_data_analysis_pipeline.txt) contains a detailed list of steps done for statistical data analysis. At each step, it includes references to specific R scrips from `/R/data_analysis` directory. 
