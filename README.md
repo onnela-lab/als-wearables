@@ -8,3 +8,7 @@ This repository accompanies the manuscript preprint "Wearable device and smartph
 
 The repository contains the R code used to do all data preprocessing and statistical data analyses included in the manuscript. The repository does not contain data. 
 
+### Repository navigation 
+
+
+

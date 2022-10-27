@@ -1,0 +1,62 @@
+
+1. Participants baseline information 
+
+1.1. Get "Table 1"
+  * Use R script: /R/data_analysis/table_1_Y-m-d.R
+  * Output (tables): /results_tables/manuscript_1/table_1.csv
+  
+1.2. Get table with compliance (Beiwe survey and wearable)
+  * Use R script: /R/data_analysis/table_beiwe_survey_and_wearable_compliance_Y-m-d.R
+  * Output (tables): /results_tables/manuscript_1/table_beiwe_survey_and_wearable_compliance.csv
+  
+
+2. Surveys analysis 
+
+2.1. Estimate [surveys ~ time] models 
+  * Use R script: /R/data_analysis/estimate_and_plot_survey_over_time_Y-m-d.R
+  * Output (tables): /results_tables/manuscript_1/table_lmm_estimate_survey_over_time.csv
+  * Output (figures): /results_figures/manuscript_1/lmm_survey_over_time_set1.jpeg
+  * Output (figures): /results_figures/manuscript_1/lmm_survey_over_time_set2.jpeg
+  
+2.2. Estimate correlation between Beiwe vs. in-clinic ALSFRS-R
+  * Use R script: /R/data_analysis/plot_alsfrsr_beiwe_vs_clinic_corr_Y-m-d.R
+  * Output (figures): /results_figures/manuscript_1/survey_alsfrs_beiwe_vs_clinic_corr.jpeg
+  
+
+3. Wearables analysis 
+
+3.1. Estimate [wearables ~ time] models  
+  * Use R script: /R/data_analysis/estimate_wearable_over_time_Y-m-d.R
+  * Output (R object): /results_tables/manuscript_1/table_lmm_wearable_over_time.csv
+  
+3.2. Estimate [alsfrsr ~ wearables] models  
+  * Use R script: /R/data_analysis/estimate_alsfrsr_vs_wearable_Y-m-d.R
+  * Output (R object): /results_tables/manuscript_1/table_lmm_alsfrsr_vs_wearable.csv
+    
+3.3. Estimate [roads ~ wearables] models  
+  * Use R script: /R/data_analysis/estimate_roads_vs_wearable_Y-m-d.R
+  * Output (R object): /results_tables/manuscript_1/table_lmm_roads_vs_wearable.csv
+  
+3.4. Combine tables generated in this section, format
+  * Use R script: /R/data_analysis/table_format_lmm_estimates_results_Y-m-d.R
+  * Output (tables): /results_tables/manuscript_1/table_formatted_lmm_estimates_results_all.csv
+  * Output (tables): /results_tables/manuscript_1/table_formatted_lmm_estimates_results_subset_main.csv
+
+3.5. Plot model results generated in this section
+  * Use Rmd script: /R/data_analysis/plot_roads_and_alsfrsr_vs_wearable/plot_roads_and_alsfrsr_vs_wearable_Y-m-d.Rmd
+  * Output (figures): /R/data_analysis/plot_roads_and_alsfrsr_vs_wearable/plot_roads_and_alsfrsr_vs_wearable_Y-m-d.docsx
+
+
+4. Other analyses
+
+4.1 Plot wearable compliance
+  * Use R script: /R/data_analysis/plot_wearable_compliance_Y-m-d.R
+  * Output (figures): /results_figures/manuscript_1/wearable_compliance_proportion_of_days_with_valid_hour.jpeg
+  * Output (figures): /results_figures/manuscript_1/wearable_compliance_valid_hours_across_days.jpeg
+  
+4.2 Run sensitivity analysis
+  * Use R script: /R/data_analysis/run_sensitivity_analysis_wearable_over_time_data_availability_Y-m-d.R
+  * Output (tables): /results_tables/table_sensitivity_analysis_wearable_over_time_data_availability.csv
+  
+
+

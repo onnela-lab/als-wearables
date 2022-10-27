@@ -1,0 +1,96 @@
+
+1. Participants other data -- preprocessing
+
+1.1. Clean "smart_wearables_start_end_dates.csv" file
+  * Use R script: /R/data_preprocessing/participants_clean_wearables_start_end_dates_2022_Y-m-d.R
+  * Output data: /data_participants_other_processed/smart_wearables_start_end_dates_clean_Y-m-d.csv
+
+1.2. Clean "data_staff_administered_frs/smart_wearables_clinicFRS_Y-m-d.csv"
+  * Use R script: /R/participants_clean_staff_adnimistered_survey_Y-m-d.R
+  * Output data: /data_participants_other_processed/staff_adnimistered_alsfrs_clean.csv
+
+
+2. Beiwe data -- preprocessing
+
+2.1. Download Beiwe raw survey data
+  * Use ipython notebook script: /ipynb/download_beiwe_surveys_Y-m-d.ipynb
+  * Note: this require Beiwe data download credentials to construct so called "Keyring" object
+
+2.2. Process survey timings stream [Depends on: 2.1]
+  * Use R script: /R/data_preprocessing/beiwe_process_survey_pull_survey_timings_Y-m-d.R
+
+2.3. Process survey answers stream [Depends on: 2.1]
+  * Use R script: /R/data_preprocessing/beiwe_process_survey_pull_survey_answers_Y-m-d.R
+
+2.4. Combine survey answers and survey timings, clean [Depends on: 2.2, 2.3]
+  * Use R script: /R/data_preprocessing/beiwe_process_survey_combine_and_clean_Y-m-d.R
+  * Output data: /data_beiwe_processed/surveys/survey_data_finalansweronly.csv
+
+2.5 Subset survey answers to keep ALSFRS-R and ROADS (complete answers to these) only
+  * Use R script: /R/data_preprocessing/beiwe_process_survey_subset_alsfrsr_roads_Y-m-d.R
+  * Output data: /data_beiwe_processed/surveys/survey_data_finalansweronly_complete_alsfrs.csv
+  * Output data: /data_beiwe_processed/surveys/survey_data_finalansweronly_complete_roads.csv
+
+
+3. ActiGraph data -- preprocessing
+
+3.1. Define ActiGraph valid day flag [Depends on: 1.1]
+  * Note: valid day flag =1 if expected to wear a sensor & had worn a sensor for pre-defined threshold time of a day, =0 otherwise
+  * Use R script: /R/data_preprocessing/actigraph_define_valid_day_flag_Y-m-d.R
+  * Output data: /data_actigraph_processed/actigraph_valid_day_flag.csv
+  * Output data: /data_actigraph_processed/actigraph_valid_hour_flag.csv
+  * Output data: /data_actigraph_processed/actigraph_valid_minute_flag.csv
+
+3.2. Define ActiGraph t1min data set -- non-imputed [Depends on: 3.1]
+  * Note: valid days only; all participants included (HC, those who do not have any Beiwe survey data etc.)
+  * Use R script: /R/data_preprocessing/actigraph_define_t1min_nonimputed_Y-m-d.R
+  * Output data: /data_actigraph_processed/actigraph_t1min_nonimputed.csv
+
+3.3. Define ActiGraph t1min data set -- imputed [Depends on: 3.2]
+  * Note: valid days only; all participants included (HC, those who do not have any Beiwe survey data etc.)
+  * Use R script: /R/data_preprocessing/actigraph_define_t1min_imputed_Y-m-d.R
+  * Output data: /data_actigraph_processed/actigraph_t1min_imputed.csv
+
+3.4. Define ActiGraph t24hr data set -- investigator-derived, non-imputed [Depends on: 3.2]
+  * Note: valid days only; all participants included (HC, those who do not have any Beiwe survey data etc.)
+  * Use R script: /R/data_preprocessing/actigraph_define_t24hr_investigatorderived_nonimputed_Y-m-d.R
+  * Output data: /data_actigraph_processed/actigraph_t24hr_investigatorderived_nonimputed.csv
+
+3.5. Define ActiGraph t24hr data set -- investigator-derived, imputed [Depends on: 3.3]
+  * Note: valid days only; all participants included (HC, those who do not have any Beiwe survey data etc.)
+  * Use R script: /R/data_preprocessing/actigraph_define_t24hr_investigatorderived_imputed_Y-m-d.R
+  * Output data: /data_actigraph_processed/actigraph_t24hr_investigatorderived_imputed.csv
+
+3.6. Define ActiGraph t24hr data set -- vendor-provided [Depends on: 3.1]
+  * Note: valid days only; all participants included (HC, those who do not have any Beiwe survey data etc.)
+  * Use R script: /R/data_preprocessing/actigraph_define_t24hr_vendorprovided_Y-m-d.R
+  * Output data: /data_actigraph_processed/actigraph_t24hr_vendorprovided.csv
+
+
+4. Modus data -- preprocessing
+
+4.1. Define Modus valid day flag [Depends on: 1.1]
+  * Note: valid day flag =1 if expected to wear a sensor & had worn a sensor for pre-defined threshold time of a day, =0 otherwise
+  * Use R script: /R/data_preprocessing/modus_define_valid_day_flag_Y-m-d.R
+  * Output data: /data_modus_processed/modus_valid_day_flag.csv
+  * Output data: /data_modus_processed/modus_valid_hour_flag.csv
+
+4.2. Define Modus t24hr data set -- vendor-provided [Depends on: 4.1]
+  * Note: valid days only; all participants included (HC, those who do not have any Beiwe survey data etc.)
+  * Use R script: /R/data_preprocessing/modus_define_t24hr_vendorprovided_Y-m-d.R
+  * Output data: /data_modus_processed/modus_t24hr_vendorprovided.csv
+
+
+5. Final study sample -- define 
+
+5.1. Define final study sample of participants [Depends: 2.4, 3.1, 4.1]
+  * Note: assume in the final study sample, we want participants who: (a) have at least 2 complete answers to ROADS survey, and (b) have at least 2 complete answers to ALSFRS-R survey, and (c) have any wearable data, and (d) are ALS patients (exclude HC). The idea is to have this data set constructed at the end (after above preprocessing steps) and easily update if needed. This data set would be USED TO FILTER PARTICIPANTS FOR EACH DATA ANALYSIS.
+  * Note: if we want to have various study samples, we could keep generating "final_study_sample_1.csv", "final_study_sample_2.csv", etc.
+  * Use R script: /R/data_preprocessing/participants_define_final_study_sample_Y-m-d.R
+  * Output data: /data_participants_other_processed/final_study_sample_1.csv
+  
+5.2. Define final date range for Beiwe survey dates to be used [Depends on: 1.1, 1.2]
+  * Use R script: /R/data_preprocessing/participants_define_beiwe_survey_dates_range_Y-m-d.R
+  * Output data: /data_participants_other_processed/final_beiwe_survey_dates_range_1.csv
+  
+  
