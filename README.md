@@ -1,8 +1,10 @@
 
-# als-wearables
+# ALS -- wearables project
 
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of als-wearables is to ...
+This repository accompanies the manuscript preprint "Wearable device and smartphone data can track ALS disease progression and may serve as novel clinical trial outcome measures".
+
+It contains the R code used to do all data preprocessing and statistical data analyses included in the manuscript. The repository does not contain data. 
 
