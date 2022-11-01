@@ -1,0 +1,438 @@
+---
+output:
+  word_document:
+    toc: no
+---
+
+```{r setup, include = FALSE, message = FALSE}
+rm(list = ls())
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, cache = FALSE)
+library(tidyverse)
+library(lubridate)
+library(data.table)
+library(janitor)
+library(lme4)
+library(lmerTest)
+library(cowplot)
+library(MuMIn)
+library(e1071)    
+library(here)
+options(digits.secs = 0)
+options(scipen = 0)
+source(file.path(here(), "R", "data_analysis", "config_figures.R"))
+source(file.path(here(), "R", "data_analysis", "utils.R"))
+```
+
+
+```{r read_precomouted_data}
+study_sample_1_path <- file.path(here(), 'data_participants_other_processed', 'final_study_sample_1.csv')
+study_sample_1 <- fread(study_sample_1_path) %>% as.data.frame()
+
+#  final date range for Beiwe survey dates to be used
+study_beiwe_survey_dates_range_1_path <- file.path(here(), 'data_participants_other_processed', 'final_beiwe_survey_dates_range_1.csv')
+study_beiwe_survey_dates_range_1 <- fread(study_beiwe_survey_dates_range_1_path) %>% as.data.frame()
+
+# roads complete answers
+roads_beiwe_path <- file.path(here(), "data_beiwe_processed", "surveys", "survey_data_finalansweronly_complete_roads.csv")
+roads_beiwe <- 
+  fread(roads_beiwe_path) %>%
+  as.data.frame() %>%
+  inner_join(study_sample_1) %>%
+  inner_join(study_beiwe_survey_dates_range_1) %>%
+  filter(
+    local_time_date <= beiwe_survey_end
+  ) %>%
+  rename(survey_local_time_date = local_time_date)
+
+# beiwe alsfrsr complete answers
+alsfrsr_beiwe_path <- file.path(here(), "data_beiwe_processed", "surveys", "survey_data_finalansweronly_complete_alsfrs.csv")
+alsfrsr_beiwe <- 
+  fread(alsfrsr_beiwe_path) %>%
+  as.data.frame() %>%
+  inner_join(study_sample_1) %>%
+  inner_join(study_beiwe_survey_dates_range_1) %>%
+  filter(
+    local_time_date <= beiwe_survey_end
+  ) %>%
+  rename(survey_local_time_date = local_time_date)
+
+
+# ------------------------------------------------------------------------------
+# read wearable data daily measures, combine with survey
+# ------------------------------------------------------------------------------
+
+# - to EACH daily measurement, attach first ALL surveys for a participant define 
+#   number of days difference between daily measurement date (wearbale_local_time_date) 
+#   and survey date (survey_local_time_date)
+# - compute days distance bw survey and wearable metrics
+# - filter to keep only 1 (the closest) survey in time for each daily measurement
+# - filter to keep only these which are not further from the closest survey than 7 days
+
+days_diff_max <- 7
+
+# ------------------------------------------------------------------------------
+# Actigraph -- vendor-provided
+
+ag_vendorprovided_path <- file.path(here(), "data_actigraph_processed", "actigraph_t24hr_vendorprovided.csv") 
+ag_vendorprovided <- 
+  fread(ag_vendorprovided_path) %>%
+  as.data.frame()  %>%
+  filter(subj_id %in% study_sample_1$subj_id) %>%
+  mutate(local_time_date = as.Date(local_time_date)) %>%
+  rename(wearbale_local_time_date = local_time_date) %>%
+  group_by(subj_id) %>%
+  mutate(
+    day_relative = as.numeric(difftime(wearbale_local_time_date, min(wearbale_local_time_date), units = c("days"))),
+    month_relative = day_relative/30.5
+  ) %>%
+  ungroup()  
+# alsfrsr
+ag_vendorprovided_alsfrsr <- 
+  ag_vendorprovided %>%
+  left_join(alsfrsr_beiwe, by = "beiwe_id") %>%
+  mutate(
+    days_diff = abs(as.numeric(difftime(wearbale_local_time_date, survey_local_time_date, units = c("days"))))
+  ) %>%
+  group_by(beiwe_id, wearbale_local_time_date) %>%
+  arrange(days_diff) %>%
+  filter(row_number() == 1) %>%
+  ungroup() %>%
+  filter(days_diff <= days_diff_max) 
+# roads 
+ag_vendorprovided_roads <- 
+  ag_vendorprovided %>%
+  left_join(roads_beiwe, by = "beiwe_id") %>%
+  mutate(
+    days_diff = abs(as.numeric(difftime(wearbale_local_time_date, survey_local_time_date, units = c("days"))))
+  ) %>%
+  group_by(beiwe_id, wearbale_local_time_date) %>%
+  arrange(days_diff) %>%
+  filter(row_number() == 1) %>%
+  ungroup() %>%
+  filter(days_diff <= days_diff_max) 
+
+
+# ------------------------------------------------------------------------------
+# Actigraph -- investigrator-derived, imputed
+
+ag_investigatorderived_imp_path <- file.path(here(), "data_actigraph_processed", "actigraph_t24hr_investigatorderived_imputed.csv") 
+ag_investigatorderived_imp <- 
+  fread(ag_investigatorderived_imp_path) %>%
+  as.data.frame()  %>%
+  filter(subj_id %in% study_sample_1$subj_id) %>%
+  mutate(local_time_date = as.Date(local_time_date)) %>%
+  rename(wearbale_local_time_date = local_time_date) %>%
+  group_by(subj_id) %>%
+  mutate(
+    day_relative = as.numeric(difftime(wearbale_local_time_date, min(wearbale_local_time_date), units = c("days"))),
+    month_relative = day_relative/30.5
+  ) %>%
+  ungroup() 
+# alsfrsr
+ag_investigatorderived_imp_alsfrsr <- 
+  ag_investigatorderived_imp %>%
+  left_join(alsfrsr_beiwe, by = "beiwe_id") %>%
+  mutate(
+    days_diff = abs(as.numeric(difftime(wearbale_local_time_date, survey_local_time_date, units = c("days"))))
+  ) %>%
+  group_by(beiwe_id, wearbale_local_time_date) %>%
+  arrange(days_diff) %>%
+  filter(row_number() == 1) %>%
+  ungroup() %>%
+  filter(days_diff <= days_diff_max) 
+# roads 
+ag_investigatorderived_imp_roads <- 
+  ag_investigatorderived_imp %>%
+  left_join(roads_beiwe, by = "beiwe_id") %>%
+  mutate(
+    days_diff = abs(as.numeric(difftime(wearbale_local_time_date, survey_local_time_date, units = c("days"))))
+  ) %>%
+  group_by(beiwe_id, wearbale_local_time_date) %>%
+  arrange(days_diff) %>%
+  filter(row_number() == 1) %>%
+  ungroup() %>%
+  filter(days_diff <= days_diff_max) 
+
+
+# ------------------------------------------------------------------------------
+# Modus -- vendor-provided
+
+modus_vendorprovided_path <- file.path(here(), "data_modus_processed", "modus_t24hr_vendorprovided.csv") 
+modus_vendorprovided <- 
+  fread(modus_vendorprovided_path) %>%
+  as.data.frame()  %>%
+  filter(subj_id %in% study_sample_1$subj_id) %>%
+  mutate(local_time_date = as.Date(local_time_date)) %>%
+  rename(wearbale_local_time_date = local_time_date) %>%
+  group_by(subj_id) %>%
+  mutate(
+    day_relative = as.numeric(difftime(wearbale_local_time_date, min(wearbale_local_time_date), units = c("days"))),
+    month_relative = day_relative/30.5
+  ) %>%
+  ungroup() 
+# alsfrsr
+modus_vendorprovided_alsfrsr <- 
+  modus_vendorprovided %>%
+  left_join(alsfrsr_beiwe, by = "beiwe_id") %>%
+  mutate(
+    days_diff = abs(as.numeric(difftime(wearbale_local_time_date, survey_local_time_date, units = c("days"))))
+  ) %>%
+  group_by(beiwe_id, wearbale_local_time_date) %>%
+  arrange(days_diff) %>%
+  filter(row_number() == 1) %>%
+  ungroup() %>%
+  filter(days_diff <= days_diff_max) 
+# roads 
+modus_vendorprovided_roads <- 
+  modus_vendorprovided %>%
+  left_join(roads_beiwe, by = "beiwe_id") %>%
+  mutate(
+    days_diff = abs(as.numeric(difftime(wearbale_local_time_date, survey_local_time_date, units = c("days"))))
+  ) %>%
+  group_by(beiwe_id, wearbale_local_time_date) %>%
+  arrange(days_diff) %>%
+  filter(row_number() == 1) %>%
+  ungroup() %>%
+  filter(days_diff <= days_diff_max) 
+```
+
+```{r make_data_objects}
+# ------------------------------------------------------------------------------
+# make table with labels and data objects
+# ------------------------------------------------------------------------------
+
+df_list_change <- list(
+  ag_vendorprovided,
+  ag_investigatorderived_imp,
+  modus_vendorprovided
+)
+
+df_list_alsfrsr <- list(
+  ag_vendorprovided_alsfrsr,
+  ag_investigatorderived_imp_alsfrsr,
+  modus_vendorprovided_alsfrsr
+)
+
+df_list_roads <- list(
+  ag_vendorprovided_roads,
+  ag_investigatorderived_imp_roads,
+  modus_vendorprovided_roads
+)
+
+
+# use wear-filtered ones
+var_name_vec_actigraph_vendorprovided_WF <- var_name_vec_actigraph_vendorprovided
+var_name_vec_actigraph_vendorprovided_WF[1 : 12] <- paste0("wearfiltered", var_name_vec_actigraph_vendorprovided_WF[1 : 12])
+
+meta_df <- data.frame(
+  var_name = c(var_name_vec_actigraph_vendorprovided_WF, var_name_vec_actigraph_investigatorderived, var_name_vec_modus_vendorprovided),
+  var_label = c(var_label_vec_actigraph_vendorprovided, var_label_vec_actigraph_investigatorderived, var_label_vec_modus_vendorprovided)
+)
+
+meta_df$df_index <- c(
+  rep(1, length(var_name_vec_actigraph_vendorprovided_WF)),
+  rep(2, length(var_name_vec_actigraph_investigatorderived)),
+  rep(3, length(var_name_vec_modus_vendorprovided))
+)
+meta_df$var_label_prefix <- c(
+  rep("ActiGraph VDMs", length(var_name_vec_actigraph_vendorprovided_WF)),
+  rep("ActiGraph IDMs", length(var_name_vec_actigraph_investigatorderived)),
+  rep("Modus VDMs", length(var_name_vec_modus_vendorprovided))
+)
+
+# what figure it will belong to 
+figure_idx <- rep(1 : ceiling(nrow(meta_df)/3), each = 3)
+figure_idx <- figure_idx[1 : nrow(meta_df)]
+meta_df$figure_idx <- figure_idx
+meta_df <-
+  meta_df %>% 
+  group_by(figure_idx) %>% 
+  mutate(figure_idx_within = row_number()) %>% 
+  ungroup() %>%
+  mutate(meta_idx = row_number()) %>%
+  as.data.frame()
+```
+
+```{r funcs_to_generate_plots}
+# ------------------------------------------------------------------------------
+# util functions to generate plots
+# ------------------------------------------------------------------------------
+
+get_plt_overtime <- function(meta_idx, plt_title = ""){ # meta_idx <- 10
+  var_name <- meta_df[meta_df$meta_idx == meta_idx, "var_name"]
+  var_label <- meta_df[meta_df$meta_idx == meta_idx, "var_label"]
+  df_index <- meta_df[meta_df$meta_idx == meta_idx, "df_index"]
+  # update label
+  var_label_prefix <-  meta_df[meta_df$meta_idx == meta_idx, "var_label_prefix"]
+  var_label <- paste0(var_label, "\n(", var_label_prefix, ")")
+  plt_df <- df_list_change[[df_index]]
+  # model data frame
+  mod_df <- 
+    plt_df %>%
+    mutate(beiwe_id_fct = factor(beiwe_id, levels = sort(unique(beiwe_id)))) %>%
+    rename_with(~ c("y"), all_of(var_name)) %>% 
+    filter(!is.na(y))
+  # model
+  mod_out <- lmer(y ~ month_relative + (1 + month_relative | beiwe_id_fct), data = mod_df, control = lmerControl(optimizer = "bobyqa"))
+  merMod_has_converged(mod_out)
+  # plot
+  mod_df$mu <- getME(mod_out, "mu")
+  plt_df_popul <- expand.grid(month_relative = range(mod_df$month_relative))
+  plt_df_popul$mu <- predict(mod_out, newdata = plt_df_popul, re.form = NA)
+  plt <- 
+    ggplot(mod_df, aes(y = y, x = month_relative, color = beiwe_id_fct, group = beiwe_id_fct)) + 
+    geom_line(aes(x = month_relative, y = mu), size = 0.5, linetype = 1) + 
+    geom_point(alpha = 0.1, size = 0.8) + 
+    geom_line(data = plt_df_popul, aes(x = month_relative, y = mu), inherit.aes = FALSE,
+              size = 1, color = "black", alpha = 0.8) + 
+    labs(x = "Time [months]", y = var_label, title = plt_title) + 
+    theme(legend.position = "none", plot.margin = unit(rep(0.3, 4), "cm")
+    ) 
+  return(plt)
+}
+
+get_plt_alsfrsr <- function(meta_idx, plt_title = ""){
+  var_name <- meta_df[meta_df$meta_idx == meta_idx, "var_name"]
+  var_label <- meta_df[meta_df$meta_idx == meta_idx, "var_label"]
+  df_index <- meta_df[meta_df$meta_idx == meta_idx, "df_index"]
+  # update label
+  var_label_prefix <-  meta_df[meta_df$meta_idx == meta_idx, "var_label_prefix"]
+  var_label <- paste0(var_label, "\n(", var_label_prefix, ")")
+  plt_df <- df_list_alsfrsr[[df_index]]
+  # model data frame
+  mod_df <- 
+    plt_df %>%
+    mutate(beiwe_id_fct = factor(beiwe_id, levels = sort(unique(beiwe_id)))) %>%
+    rename_with(~ c("y"), all_of("answers_score"))  %>%
+    rename_with(~ c("x_orig"), all_of(var_name)) %>% 
+    filter(!is.na(x_orig)) %>%
+    mutate(x = as.numeric(scale(x_orig, center = TRUE, scale = TRUE))) %>%
+    group_by(beiwe_id_fct, survey_local_time_date, y) %>%
+    summarise(x_mean = mean(x, na.rm = TRUE)) %>%
+    ungroup()
+  mod_out <- lmer(y ~ x_mean + (1 + x_mean | beiwe_id_fct), data = mod_df, control = lmerControl(optimizer = "bobyqa"))
+  merMod_has_converged(mod_out)
+  mod_df$mu <- getME(mod_out, "mu")
+  plt_df_popul <- expand.grid(x_mean = range(mod_df$x_mean))
+  plt_df_popul$mu <- predict(mod_out, newdata = plt_df_popul, re.form = NA)
+  plt <- 
+    ggplot(mod_df, aes(x = x_mean, y = y, color = beiwe_id_fct, group = beiwe_id_fct)) + 
+    geom_line(aes(x = x_mean, y = mu), size = 0.7, linetype = 1) + 
+    geom_point(alpha = 0.3, size = 0.8) + 
+    geom_line(data = plt_df_popul, aes(x = x_mean, y = mu), inherit.aes = FALSE,
+              size = 0.8, color = "black", alpha = 0.8) + 
+    labs(x = var_label, y = "ALSFRS-RSE", title = plt_title) + 
+    theme(legend.position = "none", plot.margin = unit(rep(0.3, 4), "cm")) 
+  return(plt)
+}
+  
+get_plt_roads <- function(meta_idx, plt_title = ""){
+  var_name <- meta_df[meta_df$meta_idx == meta_idx, "var_name"]
+  var_label <- meta_df[meta_df$meta_idx == meta_idx, "var_label"]
+  df_index <- meta_df[meta_df$meta_idx == meta_idx, "df_index"]
+  # update label
+  var_label_prefix <-  meta_df[meta_df$meta_idx == meta_idx, "var_label_prefix"]
+  var_label <- paste0(var_label, "\n(", var_label_prefix, ")")
+  plt_df <- df_list_roads[[df_index]]
+  # model data frame
+  mod_df <- 
+    plt_df %>%
+    mutate(beiwe_id_fct = factor(beiwe_id, levels = sort(unique(beiwe_id)))) %>%
+    rename_with(~ c("y"), all_of("answers_score_normed"))  %>%
+    rename_with(~ c("x_orig"), all_of(var_name)) %>% 
+    filter(!is.na(x_orig)) %>%
+    mutate(x = as.numeric(scale(x_orig, center = TRUE, scale = TRUE))) %>%
+    group_by(beiwe_id_fct, survey_local_time_date, y) %>%
+    summarise(x_mean = mean(x, na.rm = TRUE)) %>%
+    ungroup()
+  mod_out <- lmer(y ~ x_mean + (1 + x_mean | beiwe_id_fct), data = mod_df, control = lmerControl(optimizer = "bobyqa"))
+  merMod_has_converged(mod_out)
+  mod_df$mu <- getME(mod_out, "mu")
+  plt_df_popul <- expand.grid(x_mean = range(mod_df$x_mean))
+  plt_df_popul$mu <- predict(mod_out, newdata = plt_df_popul, re.form = NA)
+  plt <- 
+    ggplot(mod_df, aes(x = x_mean, y = y, color = beiwe_id_fct, group = beiwe_id_fct)) + 
+    geom_line(aes(x = x_mean, y = mu), size = 0.7, linetype = 1) + 
+    geom_point(alpha = 0.3, size = 0.8) + 
+    geom_line(data = plt_df_popul, aes(x = x_mean, y = mu), inherit.aes = FALSE,
+              size = 0.8, color = "black", alpha = 0.8) + 
+    labs(x = var_label, y = "ROADS", title = plt_title) + 
+    theme(legend.position = "none", plot.margin = unit(rep(0.3, 4), "cm")) 
+  return(plt)
+}
+```
+
+
+
+```{r, fig.width=10, fig.height=10, results='asis'}
+# all but the last one 
+
+figure_counter_start <- 2
+
+figure_idx_vec <- sort(unique(meta_df$figure_idx))
+for (f_idx in 1 : 10){ 
+  meta_i <- meta_df[meta_df$figure_idx == f_idx, ]
+  
+  plt_1 <- get_plt_overtime(meta_i$meta_idx[1], plt_title = "a")
+  plt_2 <- get_plt_alsfrsr(meta_i$meta_idx[1], plt_title = "b")
+  plt_3 <- get_plt_roads(meta_i$meta_idx[1], plt_title = "c")
+  
+  plt_4 <- get_plt_overtime(meta_i$meta_idx[2], plt_title = "d")
+  plt_5 <- get_plt_alsfrsr(meta_i$meta_idx[2], plt_title = "e")
+  plt_6 <- get_plt_roads(meta_i$meta_idx[2], plt_title = "f")
+  
+  plt_7 <- get_plt_overtime(meta_i$meta_idx[3], plt_title = "g")
+  plt_8 <- get_plt_alsfrsr(meta_i$meta_idx[3], plt_title = "h")
+  plt_9 <- get_plt_roads(meta_i$meta_idx[3], plt_title = "i")
+
+  plt_list <- list(
+    plt_1, plt_2, plt_3,
+    plt_4, plt_5, plt_6,
+    plt_7, plt_8, plt_9
+  )
+  plt <- plot_grid(plotlist = plt_list, ncol = 3, align = "hv", byrow = TRUE)
+  
+  plot(plt)
+  cat("\nSupplementary Figure ")
+  cat(figure_counter_start)
+  figure_counter_start <- figure_counter_start + 1
+  cat(". **Wearable physical activity daily measure change over time and their association with the self-entry amyotrophic lateral sclerosis (ALS) functional rating scale-revised (ALSFRS-RSE) and the Rasch-built overall ALS disability Scale (ROADS)**. Three different daily measures are represented in the figure, one per row. Column 1 (**a, d, g**) - baseline and monthly change in the daily measure. Column 2 (**b, e, h**) - daily measure association with ALSFRS-RSE total score. Column 3 (**c, f, i**) - daily measure association with the ROADS total score. The slopes in columns 2 and 3 represent the effect estimate for a daily measure standardized to have a mean equal to 0 and a standard deviation equal to 1. In each plot, colored lines represent participant conditional mean values. Black lines represent population mean values.")
+  cat("\n\n\\pagebreak\n")
+}
+
+```
+
+```{r, fig.width=10, fig.height=10 * 2/3, results='asis'}
+# all but the last one 
+
+f_idx <- 11
+meta_i <- meta_df[meta_df$figure_idx == f_idx, ]
+
+plt_1 <- get_plt_overtime(meta_i$meta_idx[1], plt_title = "a")
+plt_2 <- get_plt_alsfrsr(meta_i$meta_idx[1], plt_title = "b")
+plt_3 <- get_plt_roads(meta_i$meta_idx[1], plt_title = "c")
+
+plt_4 <- get_plt_overtime(meta_i$meta_idx[2], plt_title = "d")
+plt_5 <- get_plt_alsfrsr(meta_i$meta_idx[2], plt_title = "e")
+plt_6 <- get_plt_roads(meta_i$meta_idx[2], plt_title = "f")
+
+# plt_7 <- get_plt_overtime(meta_i$meta_idx[3], plt_title = "g")
+# plt_8 <- get_plt_alsfrsr(meta_i$meta_idx[3], plt_title = "h")
+# plt_9 <- get_plt_roads(meta_i$meta_idx[3], plt_title = "i")
+
+plt_list <- list(
+  plt_1, plt_2, plt_3,
+  plt_4, plt_5, plt_6
+  # plt_7, plt_8, plt_9
+)
+plt <- plot_grid(plotlist = plt_list, ncol = 3, align = "hv", byrow = TRUE)
+
+plot(plt)
+cat("\nSupplementary Figure ")
+cat(figure_counter_start)
+figure_counter_start <- figure_counter_start + 1
+  cat(". **Wearable physical activity daily measure change over time and their association with the self-entry amyotrophic lateral sclerosis (ALS) functional rating scale-revised (ALSFRS-RSE) and the Rasch-built overall ALS disability Scale (ROADS)**. Two different daily measures are represented in the figure, one per row. Column 1 (**a, d**) - baseline and monthly change in the daily measure. Column 2 (**b, e**) - daily measure association with ALSFRS-RSE total score. Column 3 (**c, f**) - daily measure association with the ROADS total score. The slopes in columns 2 and 3 represent the effect estimate for a daily measure standardized to have a mean equal to 0 and a standard deviation equal to 1. In each plot, colored lines represent participant conditional mean values. Black lines represent population mean values.")
+cat("\n\n\\pagebreak\n")
+
+```
+

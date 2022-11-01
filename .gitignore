@@ -4,6 +4,5 @@
 .Ruserdata
 
 .DS_Store
-
-/R*
-ipynb/*
+.Rhistory
+ipynb/.ipynb_checkpoints/*
