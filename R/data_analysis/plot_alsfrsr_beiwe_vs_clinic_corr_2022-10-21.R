@@ -147,9 +147,12 @@ for (i in 1 : length(redcap_event_levels)){ # i <- 1
 
 plt <- plot_grid(plotlist = plt_list, ncol = 3, align = "hv", byrow = TRUE)
 plt
+# JPEG
 plt_fpath <- file.path(here(), "results_figures", "manuscript_1", "survey_alsfrs_beiwe_vs_clinic_corr_no_dashed_ctr_line.jpeg")
-save_plot(filename = plt_fpath, plot = plt, base_width = 3 * 3.5, base_height = 3.5, dpi = 150)
-
-
+save_plot(filename = plt_fpath, plot = plt, base_width = 3 * (10/3), base_height = 3.5, dpi = 150)
+# EPS
+plt_fpath <- file.path(here(), "results_figures", "manuscript_1", "survey_alsfrs_beiwe_vs_clinic_corr_no_dashed_ctr_line.eps")
+save_plot(filename = plt_fpath, plot = plt, base_width = 3 * (10/3), base_height = 3.5, 
+          device = cairo_ps, fallback_resolution = 300)
 
 

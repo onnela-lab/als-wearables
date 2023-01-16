@@ -540,17 +540,24 @@ plt_list <- list(
   alsfrsr_beiweandinclinic_plt
   )
 plt <- plot_grid(plotlist = plt_list, ncol = 2, align = "hv", byrow = TRUE)
+# JPEG
 plt_fpath <- file.path(here(), "results_figures", "manuscript_1", "lmm_survey_over_time_set1.jpeg")
-save_plot(filename = plt_fpath, plot = plt, base_width = 4.5 * 2, base_height = 4.5 * 2, dpi = 150)
+save_plot(filename = plt_fpath, plot = plt, base_width = 4.5 * 2, base_height = 4.5 * 2, dpi = 300)
+# EPS
+plt_fpath <- file.path(here(), "results_figures", "manuscript_1", "lmm_survey_over_time_set1.eps")
+save_plot(filename = plt_fpath, plot = plt, base_width = 4.5 * 2, base_height = 4.5 * 2,
+          device = cairo_ps, fallback_resolution = 300)
 
 # figure 2 
 plt_list <- list(
   alsfrsr_beiwe_wi_plt, 
   roads_beiwe_wi_plt
-  )
+)
 plt <- plot_grid(plotlist = plt_list, ncol = 2, align = "hv", byrow = TRUE)
+# JPEG
 plt_fpath <- file.path(here(), "results_figures", "manuscript_1", "lmm_survey_over_time_set2.jpeg")
-# save_plot(filename = plt_fpath, plot = plt, base_width = 3.8 * 3, base_height = 3.8, dpi = 150)
 save_plot(filename = plt_fpath, plot = plt, base_width = 4.5 * 2, base_height = 4.5, dpi = 150)
-
-
+# EPS
+plt_fpath <- file.path(here(), "results_figures", "manuscript_1", "lmm_survey_over_time_set2.eps")
+save_plot(filename = plt_fpath, plot = plt, base_width = 4.5 * 2, base_height = 4.5,
+          device = cairo_ps, fallback_resolution = 300)
